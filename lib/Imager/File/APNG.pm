@@ -193,10 +193,8 @@ sub write_multi_apng  {
       # validate that we're making the same type of image
       my $myihdr = _make_ihdr(%{$dparsed->{ihdr}}, w => $ims[0]->getwidth, h => $im->getheight);
       if ($ihdr ne $myihdr) {
-        print STDERR "IHDR mismatch\n";
-        print STDERR "  Main : ", unpack("H*", $ihdr), "\n";
-        print STDERR "  Frame: ", unpack("H*", $myihdr), "\n";
-        Imager->_set_error("APNG: Internal error: IHDR mismatch");
+        Imager->_set_error("APNG: Internal error: IHDR mismatch "
+                           . unpack("H*", $ihdr) . " vs " . unpack("H*", $myihdr));
         return;
       }
       $writeme = _make_fctl($seq++, $orig);
@@ -204,7 +202,6 @@ sub write_multi_apng  {
         $writeme .= _make_fdat($seq++, $idat);
       }
     }
-    print STDERR "writeme ", unpack("H*", $writeme), "\n";
     if ($io->write($writeme) != length $writeme) {
       Imager->_set_error("APNG: Write failed: $!");
       return;
