@@ -157,4 +157,18 @@ use constant PI => 3.14159265358979;
   }
 }
 
+# paletted image
+{
+  my $im1 = test_image;
+  my $im2 = test_image()->to_paletted;
+
+  my $data;
+  ok(Imager->write_multi({ type => "apng", data => \$data }, $im1, $im2),
+     "write with canvas and offset second image")
+    or diag(Imager->errstr);
+  my @im = Imager->read_multi(type => "apng", data => $data)
+    or diag(Imager->errstr);
+  is(@im, 2, "read both back");
+}
+
 done_testing();

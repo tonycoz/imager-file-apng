@@ -231,6 +231,9 @@ sub write_multi_apng  {
     if ($bits > 8 && $im->bits == 8) {
       $im = $im->to_rgb16;
     }
+    elsif ($im->type eq "paletted") {
+      $im = $im->to_rgb8;
+    }
     if ($im->colorchannels != $chans) {
       $im = $im->convert(preset => "rgb");
     }
@@ -676,13 +679,17 @@ Imager::File::APNG - read and write APNG image files
 =head1 SYNOPSIS
 
   use Imager;
+  use Imager::File::APNG;
 
-  my $img = Imager->new;
-  $img->read(file => "foo.png", type => "apng)
-    or die $img->errstr;
+  my @frames = Imager->read_multi(file => "foo.png", type => "apng)
+    or die Imager->errstr;
 
-  $img->write(file => "foo.png", type => "apng")
-    or die $img->errstr;
+  Imager->write_multi({
+      file => "foo.png",
+      type => "apng"
+      apng_delay => 1/60,
+    }, @frames)
+    or die Imager->errstr;
 
 =head1 DESCRIPTION
 
@@ -698,7 +705,8 @@ To write an APNG image the type parameter needs to be explicitly supplied.
 
 Due to the limitations of C<APNG> all images are written as the same
 type, eg. all RGBA, or all Grayscale, or all paletted with the same
-palette.
+palette.  C<Imager::File::APNG> will upgrade all supplied images to
+the greatest common layout.
 
 =back
 
