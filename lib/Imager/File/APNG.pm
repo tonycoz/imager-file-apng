@@ -697,21 +697,80 @@ To write an APNG image the type parameter needs to be explicitly supplied.
 =item *
 
 Due to the limitations of C<APNG> all images are written as the same
-type, eg. all RGBA, or all Grayscale, or all paletted with the same palette.
+type, eg. all RGBA, or all Grayscale, or all paletted with the same
+palette.
 
 =back
 
 =head2 Image tags
 
-The C<i_format> tag is set to C<png> on reading an APNG image.
+The C<i_format> tag is deliberately set to C<png> on reading an APNG
+image.
+
+Tags common to reading and writing:
+
+=over
+
+=item *
+
+C<apng_hidden> - set on all images when reading, only has an effect on
+the first image when writing.  If non-zero for the first image it will
+be hidden from the animation.
+
+=item *
+
+C<apng_num_plays> - set on all images when reading, only used from the
+fisrt image when writing.  Specifies the number of time to repeat the
+animation.  If zero repeat forever.  Default: 0.
+
+=item *
+
+C<apng_xoffset>, C<apng_yoffset> - the position of the frame within
+the canvas, which is defined by the first image.  The frame as
+positioned by these offsets must be contained within the canvas
+dimensions.  Both default to 0.
+
+=item *
+
+C<apng_dispose> - for each animation frame, one of 0, 1, or 2, or
+alternatively C<none>, C<background> or C<previous> when writing.
+Default: 0.
+
+=item *
+
+C<apng_blend> - for each animation frame, one of 0 or 1, or
+alternatively C<source> or C<over> when writing.  Default: 0.
+
+=item *
+
+C<apng_delay> - for each animation frame, the delay in seconds,
+including fractional seconds, that the frame is displayed for.  This
+overrides C<apng_delay_num> and C<apng_delay_den>.  This is currently
+converted to a fraction out of 1000 when written to the file.
+
+=item *
+
+C<apng_delay_num>, C<apng_delay_den> - for each animation frame, the
+delay in seconds, including fractional seconds, that the frame is
+displayed for, as a rational number C< apng_delay_num / apng_delay_den
+>.  Default: 1/60.  Ignored if C<apng_delay> is set.  All three tags
+are set on read.
+
+=back
 
 =head1 TODO
 
 Support paletted images.  This will require that all the images have
-the same paletted.
+the same palette.
 
-Expand the canvas controlled by the first visible frame to fit the
-rest of the frames in.
+Optionally optimize frame generation from the source images, eg,
+trimming common pixels between the canvas at that point.
+
+Optionally generate a common palette across all the frames.  This
+should work with the above.
+
+Provide a tool to convert optimized frames read from a file into full
+frames.
 
 =head1 AUTHOR
 
