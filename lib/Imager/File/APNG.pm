@@ -56,17 +56,88 @@ sub _make_actl {
   return _make_chunk("acTL", pack("NN", $num_frames, $num_plays));
 }
 
+my %dispose_names =
+  (
+    0 => "none",
+    1 => "background",
+    2 => "previous",
+   );
+
+my %dispose_nums = reverse(%dispose_names);
+
+my %blend_names =
+  (
+    0 => "source",
+    1 => "over",
+   );
+
+my %blend_nums = reverse(%blend_names);
+
 sub _make_fctl {
-  my ($seq, $im) = @_;
+  my ($seq, $im, $frame) = @_;
 
   my $xoff = $im->tags(name => "apng_xoffset") || 0;
   my $yoff = $im->tags(name => "apng_yoffset") || 0;
+  my $delay = $im->tags(name => "apng_delay");
   my $delay_num = $im->tags(name => "apng_delay_num");
-  defined $delay_num or $delay_num = 1;
   my $delay_den = $im->tags(name => "apng_delay_den");
-  defined $delay_den or $delay_den = 0;
-  my $dispose = $im->tags(name => "apng_blend") || 0;
-  my $blend = $im->tags(name => "apng_dispose") || 0;
+
+  if (defined $delay) {
+    if ($delay > 65) {
+      # some seconds
+      $delay_num = int($delay);
+      $delay_den = 1;
+    }
+    elsif ($delay < 0) {
+      Imager->_set_error("APNG: apng_delay value $delay page $frame must be non-negative");
+      return;
+    }
+    else {
+      # FIXME: try to find a better rational estimate
+      $delay_num = int($delay * 1000);
+      $delay_den = 1000;
+    }
+  }
+  elsif (defined $delay_den) {
+    unless (defined $delay_num) {
+      $delay_num = 1;
+    }
+  }
+  else {
+    $delay_den = 60;
+    unless (defined $delay_num) {
+      $delay_num = 1;
+    }
+  }
+  if ($delay_num < 0 || $delay_num > 65535) {
+    Imager->_set_error("APNG: apng_delay_num value $delay_num page $frame out of range 0 .. 65535");
+    return;
+  }
+  if ($delay_den < 0 || $delay_den > 65535) {
+    Imager->_set_error("APNG: apng_delay_den value $delay_den page $frame out of range 0 .. 65535");
+    return;
+  }
+
+  my $dispose = $im->tags(name => "apng_dispose") || 0;
+  my $blend = $im->tags(name => "apng_blend") || 0;
+  if ($dispose =~ /[^0-9.]/) {
+    if (exists $dispose_nums{$dispose}) {
+      $dispose = $dispose_nums{$dispose};
+    }
+    else {
+      Imager->_set_error("APNG: unknown value '$dispose' page $frame for apng_dispose");
+      return
+    }
+  }
+  if ($blend =~ /[^0-9.]/) {
+    if (exists $blend_nums{$blend}) {
+      $blend   = $blend_nums{$blend};
+    }
+    else {
+      Imager->_set_error("APNG: unknown value '$blend' page $frame for apng_blend");
+      return
+    }
+  }
 
   return _make_chunk("fcTL", pack("NNNNNnnCC", $seq, $im->getwidth, $im->getheight,
                                   $xoff, $yoff, $delay_num, $delay_den, $dispose, $blend));
@@ -134,17 +205,17 @@ sub write_multi_apng  {
     my $xoff = $im->tags(name => "apng_xoffset") || 0;
     my $yoff = $im->tags(name => "apng_yoffset") || 0;
     if ($xoff < 0) {
-      Imager->_set_error("APNG: apng_xoffset must be non-negative for frame $frame");
+      Imager->_set_error("APNG: apng_xoffset must be non-negative for page $frame");
       return;
     }
     if ($yoff < 0) {
-      Imager->_set_error("APNG: apng_yoffset must be non-negative for frame $frame");
+      Imager->_set_error("APNG: apng_yoffset must be non-negative for page $frame");
       return;
     }
     my $fwidth = $im->getwidth;
     my $fheight = $im->getheight;
     if ($xoff + $fwidth > $cwidth || $yoff + $fheight > $cheight) {
-      Imager->_set_error("APNG: Frame $frame (${fwidth}x${fheight}\@${xoff}x$yoff)is outside the canvas defined by frame $first_frame (${cwidth}x$cheight)");
+      Imager->_set_error("APNG: Page $frame (${fwidth}x${fheight}\@${xoff}x$yoff) is outside the canvas defined by page $first_frame (${cwidth}x$cheight)");
       return;
     }
   }
@@ -185,19 +256,23 @@ sub write_multi_apng  {
       my $num_plays = $orig->tags(name => "apng_num_plays") || 0;
       $writeme .= _make_actl(scalar(@ims) - $first_frame, $num_plays);
       if ($first_frame == 0) {
-        $writeme .= _make_fctl($seq++, $orig);
+        my $fctl = _make_fctl($seq++, $orig, $frame)
+          or return;
+        $writeme .= $fctl;
       }
       $writeme .= join "", @{$dparsed->{frames}[0]{idat}};
     }
     else {
       # validate that we're making the same type of image
-      my $myihdr = _make_ihdr(%{$dparsed->{ihdr}}, w => $ims[0]->getwidth, h => $im->getheight);
+      my $myihdr = _make_ihdr(%{$dparsed->{ihdr}}, w => $ims[0]->getwidth, h => $ims[0]->getheight);
       if ($ihdr ne $myihdr) {
         Imager->_set_error("APNG: Internal error: IHDR mismatch "
                            . unpack("H*", $ihdr) . " vs " . unpack("H*", $myihdr));
         return;
       }
-      $writeme = _make_fctl($seq++, $orig);
+      my $fctl = _make_fctl($seq++, $orig, $frame)
+        or return;
+      $writeme .= $fctl;
       for my $idat (@{$dparsed->{frames}[0]{idat_payloads}}) {
         $writeme .= _make_fdat($seq++, $idat);
       }
@@ -212,7 +287,6 @@ sub write_multi_apng  {
     Imager->_set_error("APNG: Write failed: $!");
     return;
   }
-  # FIXME: IEND
   if ($io->close) {
     Imager->_set_error("APNG: Close failed: $!");
     return;
@@ -505,7 +579,7 @@ sub _from_frame {
     $im->settag(name => "apng_yoffset", value => $fctl->{yoff});
     $im->settag(name => "apng_delay_num", value => $fctl->{delay_num});
     $im->settag(name => "apng_delay_den", value => $fctl->{delay_den});
-    $im->settag(name => "apng_delay", value => sprintf("%.3f", $fctl->{delay_num} / ($fctl->{delay_den} || 100)));
+    $im->settag(name => "apng_delay", value => sprintf("%.4g", $fctl->{delay_num} / ($fctl->{delay_den} || 100)));
     $im->settag(name => "apng_dispose", value => $fctl->{dispose});
     $im->settag(name => "apng_blend", value => $fctl->{blend});
   }
