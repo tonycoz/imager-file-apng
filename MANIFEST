@@ -8,15 +8,3 @@ t/00environ.t
 t/01load.t
 t/10apng.t
 t/91manifest.t
-t/images/apng00.png
-t/images/apng01.png
-t/images/apng02.png
-t/images/apng04.png
-t/images/apng08.png
-t/images/apng10.png
-t/images/apng11.png
-t/images/apng12.png
-t/images/apng14.png
-t/images/apng18.png
-t/images/apng24.png
-t/images/apng26.png
