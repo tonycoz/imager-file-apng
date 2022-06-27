@@ -786,6 +786,6 @@ Tony Cook <tonyc@cpan.org>
 
 =head1 SEE ALSO
 
-L<Imager>, <Imager::Files>.
+L<Imager>, L<Imager::Files>.
 
 =cut
