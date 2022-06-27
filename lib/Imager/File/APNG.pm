@@ -29,11 +29,6 @@ sub do_write_png {
 sub do_read_png {
   my ($data, $frame) = @_;
 
-  open my $fh, ">", "foo.png" or die;
-  binmode $fh;
-  print $fh $data;
-  close $fh;
-
   my $io = Imager::IO->new_buffer($data);
   my $im = Imager->new;
   unless ($im->{IMG} = Imager::File::PNG::i_readpng_wiol($io, 0)) {
