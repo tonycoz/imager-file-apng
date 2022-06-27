@@ -419,9 +419,15 @@ sub _parse_apng_parts {
   my $sequence = -1;
   my $frame = -1;
   while (my ($dlen, $data, $len, $type, $payload, $crc) = _read_chunk($io)) {
-    # FIXME: crc checks?
-    # FIXME: ordering checks
-    # chunks we need to duplicate from image to image
+    if ($strict) {
+      my $ncrc = unpack("N", $crc);
+      my $ccrc = _crc($type . $payload);
+      if ($ncrc != $ccrc) {
+        Imager->_set_error(sprintf("APNG: CRC mismatch for $type chunk %#x vs %#x (strict)",
+                                   $ncrc, $ccrc));
+        return;
+      }
+    }
     if ($type eq 'IHDR') {
       my ($w, $h, $d, $ct, $comp, $filter, $inter) =
         unpack("NNCCCCC", $payload);
@@ -437,6 +443,7 @@ sub _parse_apng_parts {
           data => $data,
          };
     }
+    # chunks we need to duplicate from image to image
     elsif ($type =~ /\A(PLTE|tRNS|sRGB|cHRM|gAMA|iCCP|sBIT|pHYs|tIME)\z/) {
       push @headers, $data;
     }
