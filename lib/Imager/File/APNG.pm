@@ -706,7 +706,7 @@ To write an APNG image the type parameter needs to be explicitly supplied.
 =item *
 
 Due to the limitations of C<APNG> all images are written as the same
-type, eg. all RGBA, or all Grayscale, or all paletted with the same
+type, e.g. all RGBA, or all grayscale, or all paletted with the same
 palette.  C<Imager::File::APNG> will upgrade all supplied images to
 the greatest common layout.
 
@@ -730,7 +730,7 @@ be hidden from the animation.
 =item *
 
 C<apng_num_plays> - set on all images when reading, only used from the
-fisrt image when writing.  Specifies the number of time to repeat the
+first image when writing.  Specifies the number of time to repeat the
 animation.  If zero repeat forever.  Default: 0.
 
 =item *
@@ -773,7 +773,7 @@ are set on read.
 Support paletted images.  This will require that all the images have
 the same palette.
 
-Optionally optimize frame generation from the source images, eg,
+Optionally optimize frame generation from the source images, e.g.,
 trimming common pixels between the canvas at that point.
 
 Optionally generate a common palette across all the frames.  This
