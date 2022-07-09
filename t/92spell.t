@@ -27,3 +27,4 @@ Imager
 RGBA
 TODO
 paletted
+grayscale
