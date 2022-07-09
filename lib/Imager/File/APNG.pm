@@ -159,11 +159,23 @@ sub write_multi_apng  {
   my $type = $ims[0]->type;
   my $bits = $ims[0]->bits;
   my $chans = $ims[0]->colorchannels;
+  my $allchans = $ims[0]->getchannels;
+  my $palette = $type eq "paletted" && $chans == 3
+    ? join "", map { chr } map { ($_->rgba)[0..($allchans-1)] } $ims[0]->getcolors
+    : "";
   my $need_alpha = 0;
   for my $im (@ims) {
-    if ($type eq 'palette' && $im->type eq 'direct') {
-      # FIXME: look for a common palette
-      $type = 'direct';
+    if ($type eq 'paletted') {
+      if ($im->type eq 'direct' || $im->getchannels() != $allchans) {
+        $type = 'direct';
+      }
+      else {
+        # check we have a common palette and channels is 3
+        my $npalette = join "", map { chr } map { ($_->rgba)[0..($allchans-1)] } $im->getcolors;
+        if ($im->colorchannels != 3 || $palette ne $npalette) {
+          $type = 'direct';
+        }
+      }
     }
     if ($im->bits eq 'double' || ($bits ne 'double' && $im->bits > $bits)) {
       $bits = $im->bits;
@@ -174,11 +186,7 @@ sub write_multi_apng  {
     }
   }
 
-  if ($type eq 'palette' && $chans == 3) {
-    # FIXME - we shouldn't get here yet
-  }
-  else {
-    $type = 'direct';
+  if ($type eq 'direct') {
     if ($bits eq 'double' || $bits > 8) {
       $bits = 16;
     }
@@ -223,17 +231,20 @@ sub write_multi_apng  {
     my $orig = $im;
 
     # convert each frame to a common form
-    if ($bits > 8 && $im->bits == 8) {
-      $im = $im->to_rgb16;
-    }
-    elsif ($im->type eq "paletted") {
-      $im = $im->to_rgb8;
-    }
-    if ($im->colorchannels != $chans) {
-      $im = $im->convert(preset => "rgb");
-    }
-    if ($need_alpha && !$im->alphachannel) {
-      $im = $im->convert(preset => "addalpha");
+    # paletted are already in common form
+    unless ($type eq 'paletted') {
+      if ($bits > 8 && $im->bits == 8) {
+        $im = $im->to_rgb16;
+      }
+      elsif ($im->type eq "paletted") {
+        $im = $im->to_rgb8;
+      }
+      if ($im->colorchannels != $chans) {
+        $im = $im->convert(preset => "rgb");
+      }
+      if ($need_alpha && !$im->alphachannel) {
+        $im = $im->convert(preset => "addalpha");
+      }
     }
     my $dio = Imager::IO->new_bufchain;
     do_write_png($im, $dio, %$opts)
@@ -708,7 +719,12 @@ To write an APNG image the type parameter needs to be explicitly supplied.
 Due to the limitations of C<APNG> all images are written as the same
 type, e.g. all RGBA, or all grayscale, or all paletted with the same
 palette.  C<Imager::File::APNG> will upgrade all supplied images to
-the greatest common layout.
+the greatest common layout.  If all images are paletted, but do not
+have exactly the same palette the file will use direct color.
+
+=item *
+
+Single images are written without animation chunks.
 
 =back
 
@@ -769,9 +785,6 @@ are set on read.
 =back
 
 =head1 TODO
-
-Support paletted images.  This will require that all the images have
-the same palette.
 
 Optionally optimize frame generation from the source images, e.g.,
 trimming common pixels between the canvas at that point.
