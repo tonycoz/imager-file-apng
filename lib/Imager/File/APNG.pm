@@ -9,30 +9,14 @@ our $VERSION = "0.001";
 
 my $png_header = "\x89PNG\x0d\x0A\cZ\x0A";
 
-# looks behind the curtain
-# I expect I'll give Imager::File::PNG a separate API, so don't do
-# this because I'll break your code
-
-sub do_write_png {
-  my ($im, $io, %hsh) = @_;
-
-  $im->_set_opts(\%hsh, "i_", $im);
-  $im->_set_opts(\%hsh, "png_", $im);
-
-  unless (Imager::File::PNG::i_writepng_wiol($im->{IMG}, $io)) {
-    $im->_set_error(Imager->_error_as_msg);
-    return;
-  }
-  return $im;
-}
-
-sub do_read_png {
+sub _read_png_data {
   my ($data, $frame) = @_;
 
-  my $io = Imager::IO->new_buffer($data);
+  my $io = Imager::IO->new_buffer($data)
+    or die;
   my $im = Imager->new;
-  unless ($im->{IMG} = Imager::File::PNG::i_readpng_wiol($io, 0)) {
-    Imager->_set_error("APNG: " . Imager->_error_as_msg . " decoding frame $frame");
+  unless (Imager::File::PNG->read($im, $io)) {
+    Imager->_set_error("APNG: " . $im->_error_as_msg . " decoding frame $frame");
     return;
   }
   return $im;
@@ -42,7 +26,7 @@ sub do_read_png {
 sub write_apng {
   my ($im, $io, %hsh) = @_;
 
-  return return do_write_png($im, $io, %hsh);
+  return return Imager::File::PNG->write($im, $io, %hsh);
 };
 
 sub _make_actl {
@@ -247,7 +231,7 @@ sub write_multi_apng  {
       }
     }
     my $dio = Imager::IO->new_bufchain;
-    do_write_png($im, $dio, %$opts)
+    Imager::File::PNG->write($im, $dio, %$opts)
       or return;
     my $data = Imager::io_slurp($dio);
     undef $dio;
@@ -528,7 +512,7 @@ sub _from_idat {
     @{$parsed->{headers}},
     @{$parsed->{frames}[0]{idat}},
     $parsed->{end};
-  my $im = do_read_png($data, 0)
+  my $im = _read_png_data($data, 0)
     or return;
 
   return $im;
@@ -570,7 +554,7 @@ sub _from_fdat {
     ( map { _make_idat($_) } @{$parsed->{frames}[$frame]{fdat}} ),
     $parsed->{end};
 
-  my $im = do_read_png($data, $frame)
+  my $im = _read_png_data($data, $frame)
     or return;
 
   return $im;
