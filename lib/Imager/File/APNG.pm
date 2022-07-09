@@ -5,7 +5,7 @@ use Imager;
 use Imager::File::PNG;
 use vars qw($VERSION);
 
-our $VERSION = "0.001";
+our $VERSION = "0.002";
 
 my $png_header = "\x89PNG\x0d\x0A\cZ\x0A";
 
